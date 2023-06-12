@@ -70,6 +70,9 @@ namespace midihold
 		void processNoteOff(MidiBuffer& midiOut, const MidiMessage& msg, int s)
 		{
 			const auto noteOffIdx = setNoteOff(msg);
+			bool wasActiveNote = idx == noteOffIdx;
+			if (!wasActiveNote)
+				return;
 			if (!noteOnsLeft())
 				return;
 
@@ -85,8 +88,11 @@ namespace midihold
 				auto& voice = voices[j];
 				if (voice.noteOn)
 				{
-					idx = j;
-					voice.addNoteOn(midiOut, s);
+					if (idx != j)
+					{
+						idx = j;
+						voice.addNoteOn(midiOut, s);
+					}
 					return;
 				}
 			}
@@ -175,6 +181,7 @@ namespace midihold
 
 todo:
 
-glide?
+bug of overlapping notes
+add kill parameter that clears and noteOffs all voices
 
 */
