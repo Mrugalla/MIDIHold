@@ -4,18 +4,23 @@ static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    const auto valToStrMPE = [](bool e, int)
+    const auto valToStrBool = [](bool e, int)
     {
         return juce::String(e ? "Enabled" : "Disabled");
 	};
-	const auto strToValMPE = [](const juce::String& s)
+	const auto strToValBool = [](const juce::String& s)
 	{
         return s.getIntValue() != 0;
 	};
+    
 
     params.push_back(std::make_unique<juce::AudioParameterBool>
     (
-        "mpeEnabled", "MPE", false, "", valToStrMPE, strToValMPE
+        "mpeEnabled", "MPE", false, "", valToStrBool, strToValBool
+    ));
+    params.push_back(std::make_unique<juce::AudioParameterBool>
+    (
+        "kill", "Kill", false, "", valToStrBool, strToValBool
     ));
 
     return { params.begin(), params.end() };
@@ -34,6 +39,7 @@ MIDIHoldAudioProcessor::MIDIHoldAudioProcessor()
                        ),
 	apvts(*this, nullptr, "PARAMETERS", createParameterLayout()),
 	mpeEnabledParam(*apvts.getParameter("mpeEnabled")),
+	killParam(*apvts.getParameter("kill")),
     mpeSplit(),
     midiHold()
 #endif
@@ -159,6 +165,7 @@ void MIDIHoldAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     }
 
     const bool mpeEnabled = mpeEnabledParam.getValue() > .5f;
+	const bool kill = killParam.getValue() > .5f;
 
     if (mpeEnabled)
     {
@@ -168,13 +175,13 @@ void MIDIHoldAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
             auto& hold = midiHold[ch];
             
             const auto& mpeBuffer = mpeSplit[ch + 1];
-            hold.synthesizeMIDI(mpeBuffer, isPlaying);
+            hold.synthesizeMIDI(mpeBuffer, isPlaying, kill);
             const auto& holdBuffer = hold.getMIDI();
 			midi.addEvents(holdBuffer, 0, numSamples, 0);
         }
     }
     else
-        midiHold[0](midi, isPlaying);
+        midiHold[0](midi, isPlaying, kill);
 }
 
 //==============================================================================

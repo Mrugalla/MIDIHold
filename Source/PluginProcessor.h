@@ -46,7 +46,7 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState apvts;
-    juce::RangedAudioParameter& mpeEnabledParam;
+    juce::RangedAudioParameter &mpeEnabledParam, &killParam;
 
     mpesplit::MPESplit mpeSplit;
     std::array<midihold::MIDIHold, mpesplit::NumChannels> midiHold;

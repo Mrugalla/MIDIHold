@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <array>
+#include <functional>
 
 namespace midihold
 {
@@ -47,27 +48,33 @@ namespace midihold
 			idx(0)
 		{}
 
-		void clear(MidiBuffer& midiOut) noexcept
+		void clear(MidiBuffer& midiOut)
+		{
+			allNotesOff(midiOut);
+			for (auto& voice : voices)
+				voice = Voice();
+		}
+		
+		void allNotesOff(MidiBuffer& midiOut)
 		{
 			for (auto& voice : voices)
-			{
 				voice.addNoteOff(midiOut, 0);
-				voice = Voice();
-			}
 		}
 
-		void processNoteOn(MidiBuffer& midiOut, const MidiMessage& msg, int s)
+		void processNoteOn(MidiBuffer& midiOut, const MidiMessage& msg, int s, bool kill)
 		{
-			voices[idx].addNoteOff(midiOut, s);
+			if(!kill)
+				voices[idx].addNoteOff(midiOut, s);
 			idx = (idx + 1) % NumVoices;
 			const auto ch = msg.getChannel();
 			const auto pitch = msg.getNoteNumber();
 			const auto velo = msg.getVelocity();
 			voices[idx] = makeNoteOn(ch, pitch, velo);
-			voices[idx].addNoteOn(midiOut, s);
+			if (!kill)
+				voices[idx].addNoteOn(midiOut, s);
 		}
 
-		void processNoteOff(MidiBuffer& midiOut, const MidiMessage& msg, int s)
+		void processNoteOff(MidiBuffer& midiOut, const MidiMessage& msg, int s, bool kill)
 		{
 			const auto noteOffIdx = setNoteOff(msg);
 			bool wasActiveNote = idx == noteOffIdx;
@@ -76,7 +83,7 @@ namespace midihold
 			if (!noteOnsLeft())
 				return;
 
-			if(noteOffIdx != -1)
+			if(noteOffIdx != -1 && !kill)
 				voices[noteOffIdx].addNoteOff(midiOut, s);
 
 			for (auto i = 0; i < NumVoices; ++i)
@@ -91,7 +98,8 @@ namespace midihold
 					if (idx != j)
 					{
 						idx = j;
-						voice.addNoteOn(midiOut, s);
+						if (!kill)
+							voice.addNoteOn(midiOut, s);
 					}
 					return;
 				}
@@ -136,13 +144,13 @@ namespace midihold
 			midiOut.ensureSize(1024);
 		}
 		
-		void operator()(MidiBuffer& midiIn, bool _isPlaying)
+		void operator()(MidiBuffer& midiIn, bool _isPlaying, bool _kill)
 		{
-			synthesizeMIDI(midiIn, _isPlaying);
+			synthesizeMIDI(midiIn, _isPlaying, _kill);
 			midiIn.swapWith(midiOut);
 		}
 
-		void synthesizeMIDI(const MidiBuffer& midiIn, bool _isPlaying)
+		void synthesizeMIDI(const MidiBuffer& midiIn, bool _isPlaying, bool _kill)
 		{
 			midiOut.clear();
 
@@ -152,14 +160,20 @@ namespace midihold
 				if (!isPlaying)
 					voices.clear(midiOut);
 			}
+			if (kill != _kill)
+			{
+				kill = _kill;
+				if (kill)
+					voices.allNotesOff(midiOut);
+			}
 
 			for (auto midi : midiIn)
 			{
 				const auto msg = midi.getMessage();
 				if (msg.isNoteOn())
-					voices.processNoteOn(midiOut, msg, midi.samplePosition);
+					voices.processNoteOn(midiOut, msg, midi.samplePosition, kill);
 				else if (msg.isNoteOff())
-					voices.processNoteOff(midiOut, msg, midi.samplePosition);
+					voices.processNoteOff(midiOut, msg, midi.samplePosition, kill);
 				else
 					midiOut.addEvent(msg, midi.samplePosition);
 			}
@@ -173,7 +187,7 @@ namespace midihold
 	protected:
 		Voices voices;
 		MidiBuffer midiOut;
-		bool isPlaying;
+		bool isPlaying, kill;
 	};
 }
 
