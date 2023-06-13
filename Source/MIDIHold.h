@@ -181,7 +181,6 @@ namespace midihold
 
 todo:
 
-bug of overlapping notes
 add kill parameter that clears and noteOffs all voices
 
 */
