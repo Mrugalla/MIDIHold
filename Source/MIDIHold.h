@@ -45,7 +45,8 @@ namespace midihold
 	{
 		Voices() :
 			voices(),
-			idx(0)
+			idx(0),
+			forceNoteOn(false)
 		{}
 
 		void clear(MidiBuffer& midiOut)
@@ -61,6 +62,11 @@ namespace midihold
 				voice.addNoteOff(midiOut, 0);
 		}
 
+		void setForceNoteOn() noexcept
+		{
+			forceNoteOn = true;
+		}
+
 		void processNoteOn(MidiBuffer& midiOut, const MidiMessage& msg, int s, bool kill)
 		{
 			if(!kill)
@@ -72,18 +78,26 @@ namespace midihold
 			voices[idx] = makeNoteOn(ch, pitch, velo);
 			if (!kill)
 				voices[idx].addNoteOn(midiOut, s);
+			forceNoteOn = false;
 		}
 
 		void processNoteOff(MidiBuffer& midiOut, const MidiMessage& msg, int s, bool kill)
 		{
 			const auto noteOffIdx = setNoteOff(msg);
-			bool wasActiveNote = idx == noteOffIdx;
+			const bool wasActiveNote = idx == noteOffIdx;
+			const bool shallNoteOn = forceNoteOn;
+			forceNoteOn = false;
 			if (!wasActiveNote)
+			{
+				if (shallNoteOn)
+					voices[idx].addNoteOn(midiOut, s);
 				return;
+			}
+			
 			if (!noteOnsLeft())
 				return;
 
-			if(noteOffIdx != -1 && !kill)
+			if (noteOffIdx != -1)
 				voices[noteOffIdx].addNoteOff(midiOut, s);
 
 			for (auto i = 0; i < NumVoices; ++i)
@@ -109,6 +123,7 @@ namespace midihold
 	protected:
 		std::array<Voice, NumVoices> voices;
 		int idx;
+		bool forceNoteOn;
 
 		int setNoteOff(const MidiMessage& msg) noexcept
 		{
@@ -139,7 +154,8 @@ namespace midihold
 		MIDIHold() :
 			voices(),
 			midiOut(),
-			isPlaying(false)
+			isPlaying(false),
+			kill(false)
 		{
 			midiOut.ensureSize(1024);
 		}
@@ -160,11 +176,14 @@ namespace midihold
 				if (!isPlaying)
 					voices.clear(midiOut);
 			}
+			
 			if (kill != _kill)
 			{
 				kill = _kill;
 				if (kill)
 					voices.allNotesOff(midiOut);
+				else
+					voices.setForceNoteOn();
 			}
 
 			for (auto midi : midiIn)
