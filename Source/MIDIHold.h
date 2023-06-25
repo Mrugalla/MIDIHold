@@ -40,7 +40,7 @@ namespace midihold
 		return { ch, pitch, velo, true };
 	}
 
-	static constexpr int NumVoices = 12; 
+	static constexpr int NumVoices = 12;
 	struct Voices
 	{
 		Voices() :
@@ -69,28 +69,32 @@ namespace midihold
 
 		void processNoteOn(MidiBuffer& midiOut, const MidiMessage& msg, int s, bool kill)
 		{
-			if(!kill)
-				voices[idx].addNoteOff(midiOut, s);
-			idx = (idx + 1) % NumVoices;
-			const auto ch = msg.getChannel();
-			const auto pitch = msg.getNoteNumber();
-			const auto velo = msg.getVelocity();
-			voices[idx] = makeNoteOn(ch, pitch, velo);
-			if (!kill)
-				voices[idx].addNoteOn(midiOut, s);
+			if (kill)
+				return;
+
 			forceNoteOn = false;
+
+			const auto pitch = msg.getNoteNumber();
+			const auto ch = msg.getChannel();
+			const auto velo = msg.getVelocity();
+
+			voices[idx].addNoteOff(midiOut, s);
+
+			idx = (idx + 1) % NumVoices;
+			voices[idx] = makeNoteOn(ch, pitch, velo);
+			voices[idx].addNoteOn(midiOut, s);
 		}
 
 		void processNoteOff(MidiBuffer& midiOut, const MidiMessage& msg, int s, bool kill)
 		{
-			const auto noteOffIdx = setNoteOff(msg);
+ 			const auto noteOffIdx = setNoteOff(msg);
 			const bool wasActiveNote = idx == noteOffIdx;
 			const bool shallNoteOn = forceNoteOn;
 			forceNoteOn = false;
 			if (!wasActiveNote)
 			{
 				if (shallNoteOn)
-					voices[idx].addNoteOn(midiOut, s);
+ 					voices[idx].addNoteOn(midiOut, s);
 				return;
 			}
 			
@@ -102,7 +106,7 @@ namespace midihold
 
 			for (auto i = 0; i < NumVoices; ++i)
 			{
-				auto j = idx - i - 1;
+				auto j = idx - i;
 				if (j < 0)
 					j += NumVoices;
 
@@ -186,7 +190,7 @@ namespace midihold
 					voices.setForceNoteOn();
 			}
 
-			for (auto midi : midiIn)
+			for (const auto midi : midiIn)
 			{
 				const auto msg = midi.getMessage();
 				if (msg.isNoteOn())
@@ -213,7 +217,7 @@ namespace midihold
 /*
 
 todo:
-
-add kill parameter that clears and noteOffs all voices
+priority
+	sort doesnt work on highest priority
 
 */

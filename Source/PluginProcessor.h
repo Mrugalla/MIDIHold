@@ -1,4 +1,5 @@
 #pragma once
+#include "MIDINotePriority.h"
 #include "MIDIHold.h"
 #include "MPESplit.h"
 #include <JuceHeader.h>
@@ -46,8 +47,9 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState apvts;
-    juce::RangedAudioParameter &mpeEnabledParam, &killParam;
+    juce::RangedAudioParameter &mpeEnabledParam, &killParam, &notePriorityParam;
 
+    midiNotePriority::NP<true> notePriority;
     mpesplit::MPESplit mpeSplit;
     std::array<midihold::MIDIHold, mpesplit::NumChannels> midiHold;
 

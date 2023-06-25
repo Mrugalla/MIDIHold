@@ -13,6 +13,10 @@ static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
         return s.getIntValue() != 0;
 	};
     
+    const auto valToStrNotePriority = [](bool e, int)
+    {
+        return e ? juce::String("Highest") : juce::String("Lowest");
+    };
 
     params.push_back(std::make_unique<juce::AudioParameterBool>
     (
@@ -22,6 +26,10 @@ static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     (
         "kill", "Kill", false, "", valToStrBool, strToValBool
     ));
+	params.push_back(std::make_unique<juce::AudioParameterBool>
+	(
+		"notePriority", "Priority", false, "", valToStrNotePriority, strToValBool
+	));
 
     return { params.begin(), params.end() };
 }
@@ -40,6 +48,8 @@ MIDIHoldAudioProcessor::MIDIHoldAudioProcessor()
 	apvts(*this, nullptr, "PARAMETERS", createParameterLayout()),
 	mpeEnabledParam(*apvts.getParameter("mpeEnabled")),
 	killParam(*apvts.getParameter("kill")),
+	notePriorityParam(*apvts.getParameter("notePriority")),
+	notePriority(),
     mpeSplit(),
     midiHold()
 #endif
@@ -166,7 +176,12 @@ void MIDIHoldAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
 
     const bool mpeEnabled = mpeEnabledParam.getValue() > .5f;
 	const bool kill = killParam.getValue() > .5f;
-
+    const auto priority = static_cast<midiNotePriority::Mode>(notePriorityParam.getValue() > .5f ? 1 : 0);
+    notePriority(midi, priority);
+    //for (auto m : midi)
+    //    if(m.getMessage().isNoteOn())
+    //        DBG(m.getMessage().getNoteNumber());
+    
     if (mpeEnabled)
     {
         mpeSplit(midi);
@@ -184,7 +199,6 @@ void MIDIHoldAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
         midiHold[0](midi, isPlaying, kill);
 }
 
-//==============================================================================
 bool MIDIHoldAudioProcessor::hasEditor() const
 {
     return false;
@@ -195,15 +209,14 @@ juce::AudioProcessorEditor* MIDIHoldAudioProcessor::createEditor()
     return nullptr;
 }
 
-//==============================================================================
-void MIDIHoldAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+void MIDIHoldAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = apvts.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
 
-void MIDIHoldAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+void MIDIHoldAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
     if (xmlState.get() != nullptr)
@@ -211,7 +224,6 @@ void MIDIHoldAudioProcessor::setStateInformation (const void* data, int sizeInBy
             apvts.replaceState(juce::ValueTree::fromXml(*xmlState));
 }
 
-//==============================================================================
 // This creates new instances of the plugin..
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {

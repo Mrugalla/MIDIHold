@@ -7,6 +7,8 @@
               pluginCode="Mdhd" pluginVST3Category="Tools" cppLanguageStandard="latest">
   <MAINGROUP id="izarVW" name="MIDIHold">
     <GROUP id="{747ABA5C-2E68-9CFA-AE39-918E4F836D81}" name="Source">
+      <FILE id="ZkH9xc" name="MIDINotePriority.h" compile="0" resource="0"
+            file="Source/MIDINotePriority.h"/>
       <FILE id="Tw6EUI" name="MPESplit.h" compile="0" resource="0" file="Source/MPESplit.h"/>
       <FILE id="K7NxzZ" name="MIDIHold.h" compile="0" resource="0" file="Source/MIDIHold.h"/>
       <FILE id="fqtV2N" name="PluginProcessor.cpp" compile="1" resource="0"

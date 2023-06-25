@@ -8,9 +8,11 @@ namespace mpesplit
 	
 	static constexpr int NumChannels = 16;
 	using MidiBuffers = std::array<MidiBuffer, NumChannels + 1>;
-
+	
 	struct MPESplit
 	{
+		enum { kSysex };
+		
 		MPESplit() :
 			buffers()
 		{
@@ -25,12 +27,12 @@ namespace mpesplit
 			
 			for (const auto midi : midiIn)
 			{
-				auto msg = midi.getMessage();
+				const auto msg = midi.getMessage();
 				const auto ch = msg.getChannel();
 				buffers[ch].addEvent(msg, midi.samplePosition);
 			}
 
-			midiIn.swapWith(buffers[0]);
+			midiIn.swapWith(buffers[kSysex]);
 		}
 
 		MidiBuffer& operator[](int ch) noexcept
